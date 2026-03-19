@@ -1,0 +1,67 @@
+name: Trading Bot Monitor (GitHub Actions)
+
+on:
+  schedule:
+    # A股收盘播报 (北京时间 15:10) => UTC时间 07:10
+    # 周一至周五运行
+    - cron: '10 7 * * 1-5'
+    
+    # 美股收盘播报 (美东时间 16:10) => UTC时间 20:10 (夏令时) / 21:10 (冬令时)
+    # 取折中暂定 20:30 UTC
+    # 周一至周五运行
+    - cron: '30 20 * * 1-5'
+    
+  workflow_dispatch:
+    # 允许手动触发并选择市场
+    inputs:
+      market:
+        description: 'Market to scan'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - a-share
+          - us-share
+
+jobs:
+  monitor-market:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+          
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          
+      - name: Determine Market Argument (Cron)
+        id: set-market
+        run: |
+          MARKET="all"
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            HOUR=$(date -u +%H)
+            if [ "$HOUR" -eq "7" ]; then
+              MARKET="a-share"
+            elif [ "$HOUR" -eq "20" ] || [ "$HOUR" -eq "21" ]; then
+              MARKET="us-share"
+            fi
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            MARKET="${{ inputs.market }}"
+          fi
+          echo "Market parameter is: $MARKET"
+          echo "MARKET=$MARKET" >> $GITHUB_ENV
+          
+      - name: Run Monitor Script
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          python main.py --market $MARKET
