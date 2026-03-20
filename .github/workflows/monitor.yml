@@ -12,8 +12,16 @@ on:
     - cron: '30 20 * * 1-5'
     
   workflow_dispatch:
-    # 允许手动触发并选择市场
+    # 允许手动触发并选择市场和模式
     inputs:
+      mode:
+        description: 'Run mode (monitor watchlist or scan global)'
+        required: true
+        default: 'monitor'
+        type: choice
+        options:
+          - monitor
+          - scan
       market:
         description: 'Market to scan'
         required: true
@@ -44,11 +52,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           
-      - name: Determine Market Argument (Cron)
-        id: set-market
+      - name: Determine Arguments (Cron vs Dispatch)
+        id: set-args
         run: |
           MARKET="all"
+          MODE="monitor"
           if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            # 默认定时任务只做 watcher monitor
             HOUR=$(date -u +%H)
             if [ "$HOUR" -eq "7" ]; then
               MARKET="a-share"
@@ -57,12 +67,13 @@ jobs:
             fi
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             MARKET="${{ inputs.market }}"
+            MODE="${{ inputs.mode }}"
           fi
-          echo "Market parameter is: $MARKET"
           echo "MARKET=$MARKET" >> $GITHUB_ENV
+          echo "MODE=$MODE" >> $GITHUB_ENV
           
-      - name: Run Monitor Script
+      - name: Run Monitor/Scanner Script
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK || vars.DISCORD_WEBHOOK }}
         run: |
-          python main.py --market $MARKET
+          python main.py --mode $MODE --market $MARKET

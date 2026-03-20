@@ -28,17 +28,23 @@ source venv/bin/activate
 # Install requirements
 pip install -r requirements.txt
 
-# Run for a specific market (requires DISCORD_WEBHOOK env var for Discord messages)
-# DISCORD_WEBHOOK="your_url" python main.py --market all
-python main.py --market a-share
-python main.py --market us-share
+# Run Monitor (Watchlist specific):
+# DISCORD_WEBHOOK="your_url" python main.py --mode monitor --market all
+python main.py --mode monitor --market a-share
+
+# Run Global Market Scanner (520 Strategy & Options Data Fusion):
+python main.py --mode scan --market all
 ```
 
 ## Features
-- **Multi-market Monitoring**: Supports Yahoo Finance tickers (A-shares use `.SS` or `.SZ` suffix).
+- **Global Market Scanner**: Uses multiprocessing to scan top 300 A-share high-liquidity stocks & S&P 500 components.
+- **520 MA Strategy**: Automatically flags tickers where the 5-day moving average crosses the 20-day moving average (Golden Cross/Death Cross).
+- **Options Data Fusion**: Appends near-term unusual option activity (Volume > OI & Volume > 1000) whenever a US stock signals a 520 strategy cross.
+- **Auto-generated Reports**: Pushes a complete Github-flavored Markdown table report directly to Discord as an attachment.
+- **Multi-market Monitoring**: Core watchlist monitor supports standard Yahoo Finance tracking.
 - **Technical Indicators**: 
   - Overbought/Oversold detection (RSI)
-  - Trend MA crosses (SMA 20/50 Golden & Death crosses)
+  - Trend MA crosses (SMA 20/50/200)
   - MACD signals
   - Volatility & Breakout detection (Bollinger Bands)
   - Volume anomaly alerts (2.5x of 10-day average)

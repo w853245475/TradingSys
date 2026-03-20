@@ -31,8 +31,9 @@ def calculate_bbands(df: pd.DataFrame, column: str = 'Close', length: int = 20, 
     return lower_band, upper_band
 
 def calculate_indicators(df: pd.DataFrame) -> pd.DataFrame:
-    """计算常用的技术指标并添加到 DataFrame"""
-    # 均线
+    """计算常用的技术指标"""
+    # 均线体系 (包括 5日 和 20日 战法)
+    df['SMA_5'] = calculate_sma(df, length=5)
     df['SMA_20'] = calculate_sma(df, length=20)
     df['SMA_50'] = calculate_sma(df, length=50)
     df['SMA_200'] = calculate_sma(df, length=200)
@@ -55,8 +56,38 @@ def calculate_indicators(df: pd.DataFrame) -> pd.DataFrame:
     
     return df
 
+def check_520_strategy(df: pd.DataFrame) -> str:
+    """
+    执行 520 战法检查
+    返回: 'Golden Cross' (金叉买入), 'Death Cross' (死叉卖出), or None
+    """
+    if df is None or len(df) < 25:
+        return None
+        
+    last_row = df.iloc[-1]
+    prev_row = df.iloc[-2]
+    
+    sma5 = last_row.get('SMA_5')
+    sma20 = last_row.get('SMA_20')
+    prev_sma5 = prev_row.get('SMA_5')
+    prev_sma20 = prev_row.get('SMA_20')
+    
+    if pd.isna(sma5) or pd.isna(sma20) or pd.isna(prev_sma5) or pd.isna(prev_sma20):
+        return None
+        
+    # 金叉：今天 5日线 > 20日线，昨天 5日线 <= 20日线
+    if prev_sma5 <= prev_sma20 and sma5 > sma20:
+        return 'Golden Cross'
+        
+    # 死叉：今天 5日线 < 20日线，昨天 5日线 >= 20日线
+    elif prev_sma5 >= prev_sma20 and sma5 < sma20:
+        return 'Death Cross'
+        
+    return None
+
 def evaluate_signals(df: pd.DataFrame) -> list:
-    """评估技术指标状态并生成信号文本"""
+    """评估技术指标状态并生成常规播报信号文本"""
+    # ...与之前一致，用于监控列表...
     if df is None or len(df) < 50:
         return []
         
@@ -64,25 +95,17 @@ def evaluate_signals(df: pd.DataFrame) -> list:
     prev_row = df.iloc[-2]
     signals = []
     
-    # RSI
     rsi = last_row.get('RSI_14', 50)
     if not np.isnan(rsi):
-        if rsi < 30:
-            signals.append("🟢 RSI超卖 (近期回调较深，存在反弹预期)")
-        elif rsi > 70:
-            signals.append("🔴 RSI超买 (近期涨幅过大，注意回调风险)")
+        if rsi < 30: signals.append("🟢 RSI超卖 (近期回调较深，存在反弹预期)")
+        elif rsi > 70: signals.append("🔴 RSI超买 (近期涨幅过大，注意回调风险)")
         
-    # MA 交叉
-    sma20 = last_row.get('SMA_20')
-    sma50 = last_row.get('SMA_50')
-    prev_sma20 = prev_row.get('SMA_20')
-    prev_sma50 = prev_row.get('SMA_50')
-    
-    if pd.notna(sma20) and pd.notna(sma50) and pd.notna(prev_sma20) and pd.notna(prev_sma50):
-        if prev_sma20 <= prev_sma50 and sma20 > sma50:
-            signals.append("🚀 均线金叉 (SMA20 上穿 SMA50)")
-        elif prev_sma20 >= prev_sma50 and sma20 < sma50:
-            signals.append("⚠️ 均线死叉 (SMA20 下穿 SMA50)")
+    # 520 战法直接融入播报
+    strategy_520 = check_520_strategy(df)
+    if strategy_520 == 'Golden Cross':
+        signals.append("🌟 【520战法触发】: 5日均线刚刚上穿20日均线 (金叉买入信号)")
+    elif strategy_520 == 'Death Cross':
+        signals.append("⚠️ 【520战法触发】: 5日均线下穿20日均线 (死叉卖出/避险信号)")
             
     # BOLL
     boll_l = last_row.get('BBL_20')
@@ -98,17 +121,5 @@ def evaluate_signals(df: pd.DataFrame) -> list:
     volume = last_row.get('Volume')
     if pd.notna(avg_vol) and volume > (avg_vol * 2.5):
         signals.append("💥 成交量异动 (超10日均量 2.5倍)")
-        
-    # MACD
-    macd = last_row.get('MACD')
-    macd_signal = last_row.get('MACDs')
-    prev_macd = prev_row.get('MACD')
-    prev_macd_signal = prev_row.get('MACDs')
-    
-    if pd.notna(macd) and pd.notna(macd_signal) and pd.notna(prev_macd):
-        if prev_macd <= prev_macd_signal and macd > macd_signal:
-            signals.append("🌟 MACD 金叉 (多头动能增强)")
-        elif prev_macd >= prev_macd_signal and macd < macd_signal:
-            signals.append("☔ MACD 死叉 (空头动能增强)")
             
     return signals

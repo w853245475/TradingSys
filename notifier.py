@@ -2,26 +2,23 @@ import requests
 import json
 from datetime import datetime
 from config import DISCORD_WEBHOOK
+import os
 
 def send_discord_alert(category: str, ticker: str, data: dict, signals: list):
     """
-    发送 Discord 消息通知
+    发送单个股票的 Discord 卡片通知
     """
     if not DISCORD_WEBHOOK:
-        print("未配置 DISCORD_WEBHOOK, 跳过通知。")
         return
         
     price = data['price']
     prev_close = data['prev_close']
     volume = data['volume']
-    
     change_pct = ((price - prev_close) / prev_close) * 100
     
-    # 根据涨跌设置颜色
-    color = 65280 if change_pct >= 0 else 16711680 # 绿色或红色
+    color = 65280 if change_pct >= 0 else 16711680 
     trend_emoji = "📈" if change_pct >= 0 else "📉"
     
-    # 构造信号文本
     signal_text = "\n".join(signals) if signals else "无明显技术信号"
     
     embed = {
@@ -54,15 +51,36 @@ def send_discord_alert(category: str, ticker: str, data: dict, signals: list):
         }
     }
     
-    payload = {
-        "embeds": [embed]
+    try:
+        requests.post(DISCORD_WEBHOOK, json={"embeds": [embed]})
+    except Exception as e:
+        print(f"[{ticker}] 发送异常: {e}")
+
+def send_discord_report(report_title: str, report_content: str, filename: str):
+    """
+    将扫描报告作为文件发送到 Discord，避免 2000 字符限制
+    """
+    if not DISCORD_WEBHOOK:
+        print("未配置 DISCORD_WEBHOOK, 跳过报告发送。")
+        return
+        
+    with open(filename, 'w', encoding='utf-8') as f:
+        f.write(report_content)
+        
+    payload_json = {
+        "content": f"**{report_title}**\n扫描已完成，具体符合策略的标的请查看附件报告 👇",
     }
     
     try:
-        response = requests.post(DISCORD_WEBHOOK, json=payload)
-        if response.status_code == 204:
-            print(f"[{ticker}] 通知已成功发送到 Discord")
+        with open(filename, 'rb') as f:
+            response = requests.post(
+                DISCORD_WEBHOOK,
+                data={"payload_json": json.dumps(payload_json)},
+                files={"file": (filename, f, "text/markdown")}
+            )
+        if response.status_code in [200, 204]:
+            print(f"✅ 报告 {filename} 已通过 Discord 发送。")
         else:
-            print(f"[{ticker}] 发送失败: HTTP {response.status_code} - {response.text}")
+            print(f"❌ 报告发送失败: HTTP {response.status_code}")
     except Exception as e:
-        print(f"[{ticker}] 发送异常: {e}")
+        print(f"发送报告异常: {e}")
