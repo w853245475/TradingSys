@@ -31,10 +31,20 @@ def fetch_ashare_hist(symbol: str) -> pd.DataFrame:
     except Exception as e:
         return None
 
+import requests
+import io
+from config import A_SHARE_WATCHLIST
+
 def get_us_universe() -> list:
     """获取美国全市场(以S&P 500和纳斯达克100作为高流动性代表)"""
     try:
-        sp500 = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')[0]
+        url = 'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies'
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        resp = requests.get(url, headers=headers)
+        resp.raise_for_status()
+        
+        # 规避 pd.read_html() 直接读 URL 导致的 403 阻断
+        sp500 = pd.read_html(io.StringIO(resp.text))[0]
         sp500_tickers = sp500['Symbol'].tolist()
         
         # 将 BRK.B 替换为 BRK-B，以适应 yfinance 的格式
@@ -53,7 +63,10 @@ def get_ashare_universe(top_n=500) -> list:
         return df['代码'].tolist()
     except Exception as e:
         print(f"获取A股现货市场失败: {e}")
-        return []
+        print("降级使用默认 Config 中的 A_SHARE_WATCHLIST。")
+        # 如果获取失败，则返回精简版的默认 watchlist，防止扫描数量为0
+        return [t.replace('.SS', '').replace('.SZ', '') for t in A_SHARE_WATCHLIST]
+
 
 def fetch_options_activity(ticker: str) -> list:
     """获取近期到期的期权链异动情况 (Cross-border Data Fusion)"""
