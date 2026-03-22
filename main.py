@@ -1,9 +1,9 @@
 import argparse
-from config import A_SHARE_WATCHLIST, US_SHARE_WATCHLIST
-from data_fetcher import fetch_historical_data
-from indicators import calculate_indicators, evaluate_signals
-from notifier import send_discord_alert
-from scanner import run_global_scan
+from trading.config import A_SHARE_WATCHLIST, US_SHARE_WATCHLIST
+from trading.data_fetcher import fetch_historical_data
+from trading.indicators import calculate_indicators, evaluate_signals
+from trading.notifier import send_discord_alert
+from trading.scanner import run_global_scan
 
 def process_watchlist(category: str, watchlist: list):
     """处理并分析给定列表的证券"""

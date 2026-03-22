@@ -1,7 +1,7 @@
 import requests
 import json
 from datetime import datetime
-from config import DISCORD_WEBHOOK
+from .config import DISCORD_WEBHOOK
 import os
 
 def send_discord_alert(category: str, ticker: str, data: dict, signals: list):

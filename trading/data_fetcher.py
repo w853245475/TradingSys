@@ -33,7 +33,7 @@ def fetch_ashare_hist(symbol: str) -> pd.DataFrame:
 
 import requests
 import io
-from config import A_SHARE_WATCHLIST
+from .config import A_SHARE_WATCHLIST
 
 def get_us_universe() -> list:
     """获取美国全市场(以S&P 500和纳斯达克100作为高流动性代表)"""

@@ -3,9 +3,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from tabulate import tabulate
 from datetime import datetime
 
-from data_fetcher import get_ashare_universe, get_us_universe, fetch_ashare_hist, fetch_historical_data, fetch_options_activity
-from indicators import calculate_indicators, check_520_strategy
-from notifier import send_discord_report
+from .data_fetcher import get_ashare_universe, get_us_universe, fetch_ashare_hist, fetch_historical_data, fetch_options_activity
+from .indicators import calculate_indicators, check_520_strategy
+from .notifier import send_discord_report
 
 def analyze_ashare_ticker(ticker: str) -> dict:
     df = fetch_ashare_hist(ticker)
